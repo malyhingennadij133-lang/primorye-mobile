@@ -21,8 +21,24 @@ jobs:
           cp lib/main.dart /tmp/main_backup.dart
           rm -rf lib
           flutter create --org ru.primorye --project-name primorye_app .
-          sed -i "s|import 'dart:html' as html;||g" /tmp/main_backup.dart
-          cp /tmp/main_backup.dart lib/main.dart
+          flutter pub add http
+          python3 -c "
+          s = open('/tmp/main_backup.dart').read()
+          s = s.replace(\"import 'dart:html' as html;\", \"import 'package:http/http.dart' as http;\")
+          s = s.replace('html.HttpRequest.request(', '_mobileHttp(')
+          helper = '''
+          class _FakeResp { final int status; final String? responseText; _FakeResp(this.status, this.responseText); }
+          Future<_FakeResp> _mobileHttp(String url, {String method = 'GET', Map<String, String>? requestHeaders, String? sendData}) async {
+            final uri = Uri.parse(url);
+            http.Response r;
+            if (method == 'POST') r = await http.post(uri, headers: requestHeaders, body: sendData);
+            else if (method == 'PATCH') r = await http.patch(uri, headers: requestHeaders, body: sendData);
+            else r = await http.get(uri, headers: requestHeaders);
+            return _FakeResp(r.statusCode, r.body);
+          }
+          '''
+          open('lib/main.dart', 'w').write(s + '\n' + helper)
+          "
           flutter pub get
           flutter build apk --release
       - name: Upload APK
