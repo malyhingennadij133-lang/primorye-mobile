@@ -19,30 +19,36 @@ jobs:
       - name: Prepare Flutter project and build APK
         run: |
           cp lib/main.dart /tmp/main_backup.dart
+          cp icon.jpg /tmp/icon_backup.jpg
           rm -rf lib
           flutter create --org ru.primorye --project-name primorye_app .
-          flutter pub add http
-          python3 -c "
-          s = open('/tmp/main_backup.dart').read()
-          s = s.replace(\"import 'dart:html' as html;\", \"import 'package:http/http.dart' as http;\")
-          s = s.replace('html.HttpRequest.request(', '_mobileHttp(')
-          helper = '''
+          flutter pub add http flutter_launcher_icons
+          cp /tmp/icon_backup.jpg icon.jpg
+          python3 -c '
+          s = open("/tmp/main_backup.dart").read()
+          s = s.replace("import '\''dart:html'\'' as html;", "import '\''package:http/http.dart'\'' as http;")
+          s = s.replace("html.HttpRequest.request(", "_mobileHttp(")
+          helper = """
           class _FakeResp { final int status; final String? responseText; _FakeResp(this.status, this.responseText); }
-          Future<_FakeResp> _mobileHttp(String url, {String method = 'GET', Map<String, String>? requestHeaders, String? sendData}) async {
+          Future<_FakeResp> _mobileHttp(String url, {String method = '\''GET'\'', Map<String, String>? requestHeaders, String? sendData}) async {
             final uri = Uri.parse(url);
             http.Response r;
-            if (method == 'POST') r = await http.post(uri, headers: requestHeaders, body: sendData);
-            else if (method == 'PATCH') r = await http.patch(uri, headers: requestHeaders, body: sendData);
+            if (method == '\''POST'\'') r = await http.post(uri, headers: requestHeaders, body: sendData);
+            else if (method == '\''PATCH'\'') r = await http.patch(uri, headers: requestHeaders, body: sendData);
             else r = await http.get(uri, headers: requestHeaders);
             return _FakeResp(r.statusCode, r.body);
           }
-          '''
-          open('lib/main.dart', 'w').write(s + '\n' + helper)
-          "
+          """
+          open("lib/main.dart", "w").write(s + helper)
+          manifest = open("android/app/src/main/AndroidManifest.xml").read()
+          manifest = manifest.replace("android:label=\"primorye_app\"", "android:label=\"Работа Тут\"")
+          open("android/app/src/main/AndroidManifest.xml", "w").write(manifest)
+          open("flutter_launcher_icons.yaml", "w").write("flutter_launcher_icons:\n  android: true\n  image_path: \"icon.jpg\"\n")
+          '
+          dart run flutter_launcher_icons
           flutter pub get
           flutter build apk --release
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: Primorye-Android-APK
           path: build/app/outputs/flutter-apk/app-release.apk
