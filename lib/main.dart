@@ -1,444 +1,365 @@
 import 'dart:convert';
-import 'dart:html' as html;
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
-void main() => runApp(const PrimoryeMobileSuperApp());
+const String sbUrl = 'https://supabase.co';
+const String sbKey = 'sb_publishable_q8Q4n2v9X7kLm3pR6tW1yZ_primorye_anon_key';
 
-const String kSupabaseUrl = 'https://' 'irwfyswmawiamejmisjg.supabase.co';
+void main() => runApp(const RabotaTutMobileApp());
 
-
-const String kSupabaseKey = 'sb_publishable_9Y3IES6sn7s1onvGlkCaNg_hsISZNc1';
-
-class PrimoryeMobileSuperApp extends StatefulWidget {
-  const PrimoryeMobileSuperApp({super.key});
-
-  @override
-  State<PrimoryeMobileSuperApp> createState() => _PrimoryeMobileSuperAppState();
-}
-
-class _PrimoryeMobileSuperAppState extends State<PrimoryeMobileSuperApp> {
-  bool _isDark = false;
-  Color _accent = const Color(0xFFF59E0B);
+class RabotaTutMobileApp extends StatelessWidget {
+  const RabotaTutMobileApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Приморье Суперапп',
+      title: 'Работа Тут',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        brightness: _isDark ? Brightness.dark : Brightness.light,
-        colorSchemeSeed: _accent,
-        scaffoldBackgroundColor: _isDark ? const Color(0xFF111827) : const Color(0xFFF3F4F6),
+        colorSchemeSeed: const Color(0xFFFFCC00),
+        scaffoldBackgroundColor: const Color(0xFFF5F6F8),
       ),
-      home: MainAppShell(
-        isDark: _isDark,
-        accent: _accent,
-        onToggleTheme: () => setState(() => _isDark = !_isDark),
-      ),
+      home: const HomeRoleSwitcher(),
     );
   }
 }
 
-class MainAppShell extends StatefulWidget {
-  final bool isDark;
-  final Color accent;
-  final VoidCallback onToggleTheme;
-
-  const MainAppShell({super.key, required this.isDark, required this.accent, required this.onToggleTheme});
-
+class HomeRoleSwitcher extends StatefulWidget {
+  const HomeRoleSwitcher({super.key});
   @override
-  State<MainAppShell> createState() => _MainAppShellState();
+  State<HomeRoleSwitcher> createState() => _HomeRoleSwitcherState();
 }
 
-class _MainAppShellState extends State<MainAppShell> {
-  int _bottomTab = 0; // 0: Заказчик (квадраты), 1: Исполнитель (список в строчку), 2: Мои заказы
-  String _selectedCity = 'Артём';
-  bool _executorAuto = true;
-  bool _showAllRowsMenu = true;
-  String? _selectedRowCategory;
-
-  final List<String> _cities = ['Артём', 'Владивосток', 'Уссурийск', 'Находка', 'Большой Камень', 'Спасск-Дальний', 'Арсеньев', 'Партизанск'];
-
-  final List<Map<String, dynamic>> _catalog = [
-    {'title': 'Грузчики', 'rate': 700, 'max_qty': 30, 'icon': Icons.groups_rounded, 'items': ['Квартирный переезд', 'Офисный переезд', 'Разгрузка фур и контейнеров', 'Подъём стройматериалов']},
-    {'title': 'Разнорабочие', 'rate': 650, 'max_qty': 30, 'icon': Icons.engineering_rounded, 'items': ['Помощь на стройке', 'Земельные работы', 'Уборка территории', 'Складские работы']},
-    {'title': 'Тяжёлые работы', 'rate': 900, 'max_qty': 20, 'icon': Icons.fitness_center_rounded, 'items': ['Перенос пианино и роялей', 'Сейфы и банкоматы', 'Промышленные станки', 'Крупногабаритные грузы']},
-    {'title': 'Универсалы', 'rate': 750, 'max_qty': 25, 'icon': Icons.handyman_rounded, 'items': ['Сборка и разборка мебели', 'Упаковка имущества', 'Мелкий бытовой ремонт', 'Демонтажные работы']},
-    {'title': 'Грузовое такси', 'rate': 1400, 'max_qty': 10, 'icon': Icons.local_shipping_rounded, 'items': ['Бортовой грузовик 1.5т', 'Фургон / Будка 3т', 'Грузовик 5т с гидробортом', 'Рефрижератор']},
-    {'title': 'Спецтехника', 'rate': 2500, 'max_qty': 10, 'icon': Icons.agriculture_rounded, 'items': ['Кран-борт / Манипулятор', 'Автовышка (14м–28м)', 'Мини-экскаватор', 'Самосвал', 'Автокран (16т–32т)', 'Буровая / Ямобур', 'Погрузчик / Бобкэт', 'Трал']},
-    {'title': 'Интернет-мастер', 'rate': 1200, 'max_qty': 5, 'icon': Icons.router_rounded, 'items': ['Настройка Wi-Fi и роутеров', 'Прокладка и обжим кабеля', 'Видеонаблюдение', 'Настройка ТВ и приставок']},
-  ];
-  List<Map<String, dynamic>> _orders = [];
+class _HomeRoleSwitcherState extends State<HomeRoleSwitcher> {
+  int _bottomTab = 0;
+  bool _isWorkerMode = false;
   bool _loading = false;
+  String _selectedCity = 'Артём';
+  String _activeCategory = '';
 
-  Map<String, String> get _headers => {
-        'apikey': kSupabaseKey,
-        'Authorization': 'Bearer $kSupabaseKey',
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
-      };
+  List<String> _cities = ['Артём', 'Владивосток', 'Уссурийск', 'Находка', 'Москва', 'Санкт-Петербург'];
+
+  List<Map<String, dynamic>> _services = [
+    {'id': 1, 'title': 'Грузчики', 'parent_title': '', 'rate': 750, 'min_hours': 2, 'max_qty': 30, 'sort_order': 1},
+    {'id': 2, 'title': 'Грузовое такси', 'parent_title': '', 'rate': 1400, 'min_hours': 2, 'max_qty': 10, 'sort_order': 2},
+    {'id': 3, 'title': 'Разнорабочие', 'parent_title': '', 'rate': 650, 'min_hours': 4, 'max_qty': 30, 'sort_order': 3},
+    {'id': 4, 'title': 'Клининг / Уборка', 'parent_title': '', 'rate': 900, 'min_hours': 3, 'max_qty': 15, 'sort_order': 4},
+    {'id': 5, 'title': 'Спецтехника', 'parent_title': '', 'rate': 3500, 'min_hours': 4, 'max_qty': 5, 'sort_order': 5},
+    {'id': 6, 'title': 'Тяжёлые работы (такелаж)', 'parent_title': '', 'rate': 1100, 'min_hours': 2, 'max_qty': 20, 'sort_order': 6},
+    {'id': 7, 'title': 'Вывоз строительного мусора', 'parent_title': '', 'rate': 2800, 'min_hours': 2, 'max_qty': 10, 'sort_order': 7},
+    {'id': 8, 'title': 'Сборка и разборка мебели', 'parent_title': '', 'rate': 850, 'min_hours': 2, 'max_qty': 10, 'sort_order': 8},
+    {'id': 9, 'title': 'Универсалы / Мастер на час', 'parent_title': '', 'rate': 950, 'min_hours': 2, 'max_qty': 10, 'sort_order': 9},
+    {'id': 10, 'title': 'Земельные и дачные работы', 'parent_title': '', 'rate': 750, 'min_hours': 4, 'max_qty': 30, 'sort_order': 10},
+    {'id': 11, 'title': 'Интернет-мастер', 'parent_title': '', 'rate': 1000, 'min_hours': 1, 'max_qty': 5, 'sort_order': 11},
+    {'id': 12, 'title': 'Автокран', 'parent_title': 'Спецтехника', 'rate': 4000, 'min_hours': 4, 'max_qty': 3, 'sort_order': 1},
+    {'id': 13, 'title': 'Экскаватор-погрузчик', 'parent_title': 'Спецтехника', 'rate': 3500, 'min_hours': 4, 'max_qty': 3, 'sort_order': 2},
+    {'id': 14, 'title': 'Манипулятор (воровайка)', 'parent_title': 'Спецтехника', 'rate': 3200, 'min_hours': 3, 'max_qty': 5, 'sort_order': 3},
+    {'id': 15, 'title': 'Самосвал', 'parent_title': 'Спецтехника', 'rate': 3000, 'min_hours': 4, 'max_qty': 5, 'sort_order': 4},
+    {'id': 16, 'title': 'Автовышка', 'parent_title': 'Спецтехника', 'rate': 3800, 'min_hours': 4, 'max_qty': 3, 'sort_order': 5},
+    {'id': 17, 'title': 'Бобкэт (мини-погрузчик)', 'parent_title': 'Спецтехника', 'rate': 2800, 'min_hours': 4, 'max_qty': 3, 'sort_order': 6},
+  ];
+
+  List<Map<String, dynamic>> _orders = [];
 
   @override
   void initState() {
     super.initState();
-    _loadOrders();
+    _loadFromCloud();
   }
 
-  Future<void> _loadOrders() async {
+  Map<String, String> get _headers => {
+    'apikey': sbKey,
+    'Authorization': 'Bearer $sbKey',
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation',
+  };
+
+  Future<void> _loadFromCloud() async {
     setState(() => _loading = true);
     try {
-      final req = await html.HttpRequest.request(
-        '$kSupabaseUrl/rest/v1/orders?select=*&order=created_at.desc',
-        method: 'GET',
-        requestHeaders: _headers,
-      );
-      if (req.status == 200 && req.responseText != null && mounted) {
-        setState(() => _orders = (jsonDecode(req.responseText!) as List).cast<Map<String, dynamic>>());
+      final cRes = await http.get(Uri.parse('$sbUrl/rest/v1/cities?select=city&order=city.asc'), headers: _headers);
+      if (cRes.statusCode == 200) {
+        final raw = List<Map<String, dynamic>>.from(jsonDecode(cRes.body));
+        if (raw.isNotEmpty) {
+          _cities = raw.map((e) => e['city'].toString()).toList();
+          if (!_cities.contains(_selectedCity)) _selectedCity = _cities.first;
+        }
+      }
+      final sRes = await http.get(Uri.parse('$sbUrl/rest/v1/services?select=*&active=eq.true&order=sort_order.asc'), headers: _headers);
+      if (sRes.statusCode == 200) {
+        final rawS = List<Map<String, dynamic>>.from(jsonDecode(sRes.body));
+        if (rawS.isNotEmpty) _services = rawS;
+      }
+      final oRes = await http.get(Uri.parse('$sbUrl/rest/v1/orders?select=*&order=id.desc'), headers: _headers);
+      if (oRes.statusCode == 200) {
+        _orders = List<Map<String, dynamic>>.from(jsonDecode(oRes.body));
       }
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
+  Future<void> _createOrder(Map<String, dynamic> svc) async {
+    final addrCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    int qty = 1;
+    int hours = (svc['min_hours'] ?? 2) as int;
+    final rate = (svc['rate'] ?? 750) as int;
+    final maxQ = (svc['max_qty'] ?? 30) as int;
 
-  Future<void> _createOrder({required String service, required String subservice, required int qty, required int hours, required int price, required String address, required String phone, required String payment}) async {
-    try {
-      await html.HttpRequest.request(
-        '$kSupabaseUrl/rest/v1/orders',
-        method: 'POST',
-        requestHeaders: _headers,
-        sendData: jsonEncode({
-          'city': _selectedCity,
-          'service': '$service ($subservice)',
-          'workers_count': qty,
-          'hours': hours,
-          'price': price,
-          'address': address,
-          'client_phone': phone,
-          'payment_method': payment,
-          'status': 'open',
-        }),
-      );
-      await _loadOrders();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Заявка создана ($qty чел./ед.) • Набор закроется автоматически при заполнении!'), backgroundColor: const Color(0xFF16A34A)),
-        );
-      }
-    } catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: widget.isDark ? const Color(0xFF1F2937) : Colors.white,
-        leading: _bottomTab == 1
-            ? IconButton(
-                tooltip: 'Все услуги в строчку',
-                icon: Icon(_selectedRowCategory != null ? Icons.arrow_back_rounded : Icons.menu_rounded),
-                onPressed: () => setState(() {
-                  if (_selectedRowCategory != null) {
-                    _selectedRowCategory = null;
-                  } else {
-                    _showAllRowsMenu = !_showAllRowsMenu;
-                  }
-                }),
-              )
-            : null,
-        title: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            value: _selectedCity,
-            items: _cities.map((c) => DropdownMenuItem(value: c, child: Text('$c (${_orders.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)))).toList(),
-            onChanged: (v) {
-              if (v != null) setState(() => _selectedCity = v);
-            },
-          ),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Дневная / Ночная тема',
-            onPressed: widget.onToggleTheme,
-            icon: Icon(widget.isDark ? Icons.light_mode_rounded : Icons.contrast_rounded),
-          ),
-          if (_bottomTab == 1)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: const Text('AUTO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                selected: _executorAuto,
-                selectedColor: const Color(0xFF16A34A),
-                onSelected: (v) => setState(() => _executorAuto = v),
-              ),
-            ),
-        ],
-      ),
-      body: _bottomTab == 0
-          ? _buildClientGrid()
-          : _bottomTab == 1
-              ? _buildExecutorRows()
-              : _buildMyOrdersTab(),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _bottomTab,
-        onDestinationSelected: (i) => setState(() => _bottomTab = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.grid_view_rounded), label: 'Заказчик'),
-          NavigationDestination(icon: Icon(Icons.view_list_rounded), label: 'Исполнитель'),
-          NavigationDestination(icon: Icon(Icons.receipt_long_rounded), label: 'Заказы'),
-        ],
-      ),
-    );
-  }
-  Widget _buildClientGrid() {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: widget.accent.withOpacity(0.18), borderRadius: BorderRadius.circular(12)),
-            child: const Text('Подача грузчиков, бригад до 30 чел. и спецтехники по Приморью за 30 минут!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.25),
-              itemCount: _catalog.length,
-              itemBuilder: (_, i) {
-                final cat = _catalog[i];
-                return InkWell(
-                  onTap: () => _openCategorySubgrid(cat),
-                  borderRadius: BorderRadius.circular(14),
-                  child: Card(
-                    elevation: 1,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircleAvatar(backgroundColor: widget.accent.withOpacity(0.2), radius: 22, child: Icon(cat['icon'] as IconData, color: widget.accent, size: 26)),
-                          const SizedBox(height: 8),
-                          Text(cat['title'] as String, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                          const SizedBox(height: 4),
-                          Text('от ${cat['rate']} ₽/ч • до ${cat['max_qty']}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _openCategorySubgrid(Map<String, dynamic> cat) {
-    final items = (cat['items'] as List).cast<String>();
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          appBar: AppBar(title: Text('${cat['title']} • Выберите услугу')),
-          body: Padding(
-            padding: const EdgeInsets.all(12),
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.25),
-              itemCount: items.length,
-              itemBuilder: (_, idx) => InkWell(
-                onTap: () => _openOrderForm(cat, items[idx]),
-                borderRadius: BorderRadius.circular(14),
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(cat['icon'] as IconData, color: widget.accent, size: 30),
-                        const SizedBox(height: 8),
-                        Text(items[idx], textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        const SizedBox(height: 4),
-                        Text('${cat['rate']} ₽/час', style: TextStyle(color: widget.accent, fontWeight: FontWeight.bold, fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _openOrderForm(Map<String, dynamic> cat, String subservice) {
-    int qty = 2;
-    int hours = 2;
-    String payment = 'Наличные';
-    final addressCtrl = TextEditingController(text: '$_selectedCity, ');
-    final phoneCtrl = TextEditingController(text: '+7 (914) ');
-    final maxQty = cat['max_qty'] as int;
-    final rate = cat['rate'] as int;
-
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModal) => Padding(
           padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 16),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${cat['title']}: $subservice', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                Text('Количество человек / единиц (макс. $maxQty): $qty', style: const TextStyle(fontWeight: FontWeight.bold)),
-                Slider(value: qty.toDouble(), min: 1, max: maxQty.toDouble(), divisions: maxQty > 1 ? maxQty - 1 : 1, onChanged: (v) => setModal(() => qty = v.round())),
-                Text('Часов работы: $hours', style: const TextStyle(fontWeight: FontWeight.bold)),
-                Slider(value: hours.toDouble(), min: 1, max: 12, divisions: 11, onChanged: (v) => setModal(() => hours = v.round())),
-                TextField(controller: addressCtrl, decoration: const InputDecoration(labelText: 'Адрес / Ворота / Кампус', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Ваш телефон', border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: payment,
-                  decoration: const InputDecoration(labelText: 'Способ оплаты', border: OutlineInputBorder()),
-                  items: ['Наличные', 'Перевод СБП', 'По счёту (с Актом для юрлиц)'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-                  onChanged: (v) {
-                    if (v != null) setModal(() => payment = v);
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${svc['title']} ($_selectedCity)', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              TextField(controller: addrCtrl, decoration: const InputDecoration(labelText: 'Адрес подачи (улица, дом)', border: OutlineInputBorder())),
+              const SizedBox(height: 8),
+              TextField(controller: phoneCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Ваш телефон (+7...)', border: OutlineInputBorder())),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Человек / единиц (до $maxQ): $qty'),
+                  Row(children: [
+                    IconButton(onPressed: qty > 1 ? () => setModal(() => qty--) : null, icon: const Icon(Icons.remove_circle)),
+                    IconButton(onPressed: qty < maxQ ? () => setModal(() => qty++) : null, icon: const Icon(Icons.add_circle)),
+                  ]),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Часов работы: $hours'),
+                  Row(children: [
+                    IconButton(onPressed: hours > 1 ? () => setModal(() => hours--) : null, icon: const Icon(Icons.remove_circle)),
+                    IconButton(onPressed: () => setModal(() => hours++), icon: const Icon(Icons.add_circle)),
+                  ]),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text('Итого: ${qty * hours * rate} ₽', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFFFFCC00), foregroundColor: Colors.black),
+                  onPressed: () async {
+                    if (addrCtrl.text.trim().isEmpty) return;
+                    Navigator.pop(ctx);
+                    await http.post(
+                      Uri.parse('$sbUrl/rest/v1/orders'),
+                      headers: _headers,
+                      body: jsonEncode({
+                        'service_title': svc['title'],
+                        'city': _selectedCity,
+                        'address': addrCtrl.text.trim(),
+                        'client_phone': phoneCtrl.text.trim(),
+                        'needed_workers': qty,
+                        'hired_workers': 0,
+                        'total_sum': qty * hours * rate,
+                        'status': 'Открыт',
+                      }),
+                    );
+                    await _loadFromCloud();
                   },
+                  child: const Text('Оформить заказ', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(backgroundColor: widget.accent, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14)),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      Navigator.pop(context);
-                      _createOrder(service: cat['title'] as String, subservice: subservice, qty: qty, hours: hours, price: qty * hours * rate, address: addressCtrl.text, phone: phoneCtrl.text, payment: payment);
-                    },
-                    child: Text('Оформить заявку • ${qty * hours * rate} ₽', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-  Widget _buildExecutorRows() {
-    final rowCategories = [
-      {'title': 'Ближайшие ($_selectedCity)', 'filter': ''},
-      {'title': 'Межгород (Приморский край)', 'filter': 'Межгород'},
-      ..._catalog.map((c) => {'title': c['title'] as String, 'filter': c['title'] as String}),
-    ];
 
-    if (_selectedRowCategory != null) {
-      final cat = _catalog.firstWhere((c) => c['title'] == _selectedRowCategory, orElse: () => {});
-      final subItems = cat.isNotEmpty ? (cat['items'] as List).cast<String>() : <String>[];
-      final filteredOrders = _orders.where((o) => (o['service'] ?? '').toString().contains(_selectedRowCategory!)).toList();
+  Future<void> _takeOrder(Map<String, dynamic> o) async {
+    final id = o['id'];
+    final hired = ((o['hired_workers'] ?? 0) as int) + 1;
+    final need = (o['needed_workers'] ?? 1) as int;
+    final closed = hired >= need;
+    await http.patch(
+      Uri.parse('$sbUrl/rest/v1/orders?id=eq.$id'),
+      headers: _headers,
+      body: jsonEncode({
+        'hired_workers': hired,
+        'status': closed ? 'Закрыт (набран)' : 'Идёт набор',
+      }),
+    );
+    await _loadFromCloud();
+  }
+  @override
+  Widget build(BuildContext context) {
+    final mainServices = _services.where((s) => (s['parent_title'] ?? '').toString().isEmpty).toList();
+    final subServices = _services.where((s) => (s['parent_title'] ?? '').toString() == _activeCategory).toList();
 
-      return ListView(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            color: widget.accent.withOpacity(0.15),
-            child: Text('$_selectedRowCategory • Все позиции в строчку (${filteredOrders.length})', style: const TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          for (final sub in subItems) ...[
-            ListTile(
-              leading: Container(width: 4, height: 24, color: widget.accent),
-              title: Text(sub, style: const TextStyle(fontWeight: FontWeight.w600)),
-              trailing: Text('${_orders.where((o) => (o['service'] ?? '').toString().contains(sub)).length}', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 16)),
-            ),
-            const Divider(height: 1),
-          ],
-          for (final o in filteredOrders)
-            ListTile(
-              leading: const Icon(Icons.flash_on_rounded, color: Colors.amber),
-              title: Text('${o['service']} • ${o['price']} ₽', style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('${o['city']} • ${o['address']} • ${o['payment_method']}'),
-              trailing: FilledButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Запрос на заказ отправлен диспетчеру!'))), child: const Text('Взять')),
-            ),
-        ],
-      );
-    }
-
-    return ListView(
-      children: [
-        if (_showAllRowsMenu) ...[
-          for (final rc in rowCategories) ...[
-            ListTile(
-              leading: Container(width: 4, height: 24, color: widget.accent),
-              title: Text(rc['title']!, style: const TextStyle(fontWeight: FontWeight.w600)),
-              trailing: Text(
-                '${rc['filter']!.isEmpty ? _orders.length : _orders.where((o) => (o['service'] ?? '').toString().contains(rc['filter']!)).length}',
-                style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 16),
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFFCC00),
+        title: Row(
+          children: [
+            const Text('РАБОТА ТУТ', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black, fontSize: 18)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: DropdownButton<String>(
+                value: _cities.contains(_selectedCity) ? _selectedCity : _cities.first,
+                isExpanded: true,
+                underline: const SizedBox(),
+                items: _cities.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)))).toList(),
+                onChanged: (v) => setState(() => _selectedCity = v ?? _selectedCity),
               ),
-              onTap: () {
-                if (_catalog.any((c) => c['title'] == rc['filter'])) {
-                  setState(() => _selectedRowCategory = rc['filter']);
-                }
-              },
             ),
-            const Divider(height: 1),
           ],
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () => setState(() => _isWorkerMode = !_isWorkerMode),
+            icon: Icon(_isWorkerMode ? Icons.engineering : Icons.person, color: Colors.black),
+            label: Text(_isWorkerMode ? 'Исполнитель' : 'Заказчик', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
         ],
-        for (final o in _orders) ...[
-          ListTile(
-            leading: const Icon(Icons.flash_on_rounded, color: Colors.amber),
-            title: Text('${o['service'] ?? 'Заказ'} (${o['workers_count'] ?? 1} чел.) • ${o['price'] ?? 0} ₽', style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('${o['city'] ?? ''} • ${o['address'] ?? ''} • ${o['payment_method'] ?? ''}'),
-            trailing: FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: widget.accent, foregroundColor: Colors.black),
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Вы откликнулись на заявку!'))),
-              child: const Text('Запросить'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _isWorkerMode
+              ? _buildWorkerFeed()
+              : _bottomTab == 1
+                  ? _buildMyOrders()
+                  : _activeCategory.isNotEmpty
+                      ? _buildSubServicesGrid(subServices)
+                      : _buildMainServicesGrid(mainServices),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _bottomTab,
+        onDestinationSelected: (i) => setState(() {
+          _bottomTab = i;
+          _activeCategory = '';
+        }),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.grid_view), label: 'Услуги'),
+          NavigationDestination(icon: Icon(Icons.receipt_long), label: 'Заказы'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainServicesGrid(List<Map<String, dynamic>> list) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.35),
+      itemCount: list.length,
+      itemBuilder: (_, i) {
+        final s = list[i];
+        final title = s['title'].toString();
+        final hasSubs = _services.any((x) => (x['parent_title'] ?? '').toString() == title);
+        final openCount = _orders.where((o) => o['service_title'] == title && o['status'] != 'Закрыт (набран)').length;
+        return InkWell(
+          onTap: () => hasSubs ? setState(() => _activeCategory = title) : _createOrder(s),
+          child: Card(
+            color: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 6),
+                  Text('от ${s['rate']} ₽/ч', style: const TextStyle(color: Colors.black54, fontSize: 12)),
+                  if (openCount > 0) Text('Заявок: $openCount', style: const TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+                ],
+              ),
             ),
           ),
-          const Divider(height: 1),
-        ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSubServicesGrid(List<Map<String, dynamic>> subs) {
+    return Column(
+      children: [
+        ListTile(
+          leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() => _activeCategory = '')),
+          title: Text('$_activeCategory — выберите технику / вид:', style: const TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(10),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, crossAxisSpacing: 6, mainAxisSpacing: 6, childAspectRatio: 0.95),
+            itemCount: subs.length,
+            itemBuilder: (_, i) {
+              final s = subs[i];
+              return InkWell(
+                onTap: () => _createOrder(s),
+                child: Card(
+                  color: Colors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('${s['title']}', textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                        const SizedBox(height: 4),
+                        Text('${s['rate']}₽', style: const TextStyle(fontSize: 10, color: Colors.black54)),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildMyOrdersTab() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Text('Активные заявки (${_orders.length})', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const Spacer(),
-              OutlinedButton.icon(onPressed: _loadOrders, icon: const Icon(Icons.refresh_rounded), label: const Text('Обновить')),
-            ],
-          ),
-        ),
-        Expanded(
-          child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _orders.isEmpty
-                  ? const Center(child: Text('Активных заявок пока нет'))
-                  : ListView.builder(
-                      itemCount: _orders.length,
-                      itemBuilder: (_, i) {
-                        final o = _orders[i];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          child: ListTile(
-                            title: Text('${o['service']} — ${o['price']} ₽', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text('${o['city']} • ${o['address']} • ${o['payment_method']}'),
-                          ),
-                        );
-                      },
+  Widget _buildWorkerFeed() {
+    final open = _orders.where((o) => o['status'] != 'Закрыт (набран)').toList();
+    return RefreshIndicator(
+      onRefresh: _loadFromCloud,
+      child: open.isEmpty
+          ? const Center(child: Text('Свободных заявок в эфире пока нет'))
+          : ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: open.length,
+              itemBuilder: (_, i) {
+                final o = open[i];
+                final hired = o['hired_workers'] ?? 0;
+                final need = o['needed_workers'] ?? 1;
+                return Card(
+                  child: ListTile(
+                    title: Text('${o['service_title']} • ${o['city']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('${o['address']}\nНабрано: $hired из $need чел. • ${o['total_sum']} ₽'),
+                    trailing: FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: const Color(0xFFFFCC00), foregroundColor: Colors.black),
+                      onPressed: () => _takeOrder(o),
+                      child: const Text('Взять'),
                     ),
-        ),
-      ],
+                  ),
+                );
+              },
+            ),
+    );
+  }
+
+  Widget _buildMyOrders() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: _orders.length,
+      itemBuilder: (_, i) {
+        final o = _orders[i];
+        return Card(
+          child: ListTile(
+            title: Text('#${o['id']} ${o['service_title']} (${o['city']})'),
+            subtitle: Text('${o['address']} • ${o['hired_workers']}/${o['needed_workers']} чел. • ${o['total_sum']} ₽'),
+            trailing: Text('${o['status']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        );
+      },
     );
   }
 }
